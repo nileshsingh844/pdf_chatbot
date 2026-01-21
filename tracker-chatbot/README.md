@@ -1,4 +1,3 @@
-✅ README.md (Docker Space)
 ---
 title: PDF Chatbot with Hybrid RAG
 emoji: 📄
