@@ -1,56 +1,31 @@
-# PDF Chatbot with Hybrid RAG
+# PDF Chatbot - RAG-powered Document Assistant
 
-A production-ready AI chatbot that allows users to upload PDF documents and ask questions with accurate citations. Built with Next.js 14, FastAPI, Groq, and ChromaDB.
+A modern web application that allows you to upload PDF documents and chat with them using advanced RAG (Retrieval-Augmented Generation) technology.
 
-## Features
+## 🚀 Features
 
-- **📄 PDF Upload**: Drag & drop PDF files with progress tracking
-- **🔍 Hybrid Search**: Combines vector similarity and BM25 keyword search
+- **📄 PDF Upload**: Drag & drop interface with progress tracking
+- **🔍 Hybrid Search**: Combines vector search and BM25 keyword search
 - **🤖 AI Responses**: Powered by Groq's Llama 3.1 model
-- **📖 Citations**: Automatic page citations (Page X) in responses
-- **🌊 Streaming**: Real-time streaming responses
-- **🎨 Modern UI**: Built with shadcn/ui and Tailwind CSS
-- **📱 Responsive**: Mobile-friendly design
-- **🌙 Dark Mode**: Toggle between light and dark themes
+- **📖 Citations**: Automatic page references in responses
+- **🌊 Streaming**: Real-time response streaming
+- **🎨 Modern UI**: Responsive design with Tailwind CSS
+- **🌙 Dark Mode**: Theme toggle support
 - **💾 Export**: Download conversations as markdown
-- **🐳 Docker**: Easy deployment with Docker Compose
+- **📱 Mobile**: Optimized for all devices
 
-## Architecture
+## 🏗️ Architecture
 
-```
-tracker-chatbot/
-├── backend/              # FastAPI Python backend
-│   ├── app/
-│   │   ├── config.py     # Pydantic settings
-│   │   ├── pdf_processor/ # PDF parsing & chunking
-│   │   ├── knowledge_base/ # Embeddings & vector store
-│   │   ├── retrieval/    # Hybrid search
-│   │   ├── llm/         # Groq client & prompts
-│   │   └── api/         # FastAPI routes
-│   └── requirements.txt
-├── frontend/             # Next.js TypeScript frontend
-│   ├── app/
-│   │   ├── page.tsx     # Main application
-│   │   └── layout.tsx   # Root layout
-│   ├── components/
-│   │   ├── pdf/         # PDF upload component
-│   │   └── chat/        # Chat interface
-│   └── lib/             # Types, API client, utils
-├── data/                # Persistent storage
-├── .env                 # Environment variables
-└── docker-compose.yml    # Container orchestration
-```
+- **Frontend**: Next.js 14 with TypeScript
+- **Backend**: FastAPI with Python
+- **Vector Database**: ChromaDB
+- **Embeddings**: Sentence Transformers
+- **LLM**: Groq API (Llama 3.1)
+- **Search**: Hybrid (Vector + BM25)
 
-## Tech Stack
+## 🚀 Quick Start
 
-### Backend
-- **FastAPI**: High-performance async web framework
-- **PyMuPDF + PDFPlumber**: PDF text extraction
-- **LangChain**: Text chunking and document processing
-- **sentence-transformers**: Text embeddings
-- **ChromaDB**: Vector database for semantic search
-- **rank-bm25**: Keyword search implementation
-- **Groq**: LLM API for chat completions
+### Local Development
 
 ### Frontend
 - **Next.js 14**: React framework with App Router

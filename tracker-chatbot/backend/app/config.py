@@ -43,14 +43,20 @@ class PDFConfig(BaseSettings):
 class APIConfig(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list = ["http://localhost:3000", "http://localhost:7860", "http://127.0.0.1:7860"]
+    cors_origins: list = [
+        "http://localhost:3000", 
+        "http://localhost:7860", 
+        "http://127.0.0.1:7860",
+        "https://*.hf.space",  # Hugging Face Spaces
+        "*"  # Allow all origins for HF Space deployment
+    ]
     max_file_size: int = 100 * 1024 * 1024  # 100MB
 
 
 class Settings(BaseSettings):
     # Environment
-    environment: str = "development"
-    debug: bool = True
+    environment: str = Field(default="production", env="ENVIRONMENT")
+    debug: bool = Field(default=False, env="DEBUG")
     
     # Component configs
     groq: GroqConfig = Field(default_factory=GroqConfig)
