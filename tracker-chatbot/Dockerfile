@@ -23,7 +23,7 @@ RUN python3 -m venv /app/backend/.venv \
 # -------------------------
 COPY frontend/ /app/frontend/
 WORKDIR /app/frontend
-RUN npm ci --only=production
+RUN npm ci
 RUN npm run build
 
 # -------------------------
