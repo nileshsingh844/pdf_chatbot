@@ -1,86 +1,74 @@
-# Virtual env
-tracker-chatbot/venv/
-venv/
-
+# =========================
 # Python
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyd
+*.pyo
+
+# Virtual environments
 venv/
-.env
-
-# Node
-node_modules/
-.next/
-out/
-
-# Local data
-tracker-chatbot/backend/data/
-data/
-uploads/
-*.db
-*.sqlite
-
-# OS
-.DS_Store
-
-
-# Python venv
-venv/
+.venv/
 **/venv/
-__pycache__/
-*.pyc
+**/.venv/
 
-# Python
-venv/
-**/venv/
-__pycache__/
-*.pyc
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Node
+# =========================
+# Node / Next.js
+# =========================
 node_modules/
 **/node_modules/
+
 .next/
+**/.next/
+
+out/
 dist/
 build/
 
-# env files
-.env
-
-# Python cache
-__pycache__/
-*.pyc
-
-# secrets
-.env
-**/.env
-
-
-# env files
-.env
-*.env
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual envs
-venv/
-.venv/
-tracker-chatbot/backend/venv/
-tracker-chatbot/venv/
-
-# Node
-node_modules/
-tracker-chatbot/frontend/node_modules/
-
-# Env secrets
-.env
-*.env
-
+# =========================
 # Logs
+# =========================
 *.log
 
-# OS files
+# =========================
+# Env / Secrets
+# =========================
+.env
+*.env
+
+# =========================
+# Backup / temp files
+# =========================
+*.bak
+*.bak_*
+*.swp
+*.tmp
+
+# =========================
+# Local data / vector DB
+# =========================
+uploads/
+data/
+tracker-chatbot/backend/data/
+
+*.db
+*.sqlite
+*.sqlite3
+
+# ChromaDB folders/files (common)
+chroma_db/
+**/chroma_db/
+chroma.sqlite3
+**/chroma.sqlite3
+
+# =========================
+# OS / IDE
+# =========================
 .DS_Store
+.idea/
+.vscode/
