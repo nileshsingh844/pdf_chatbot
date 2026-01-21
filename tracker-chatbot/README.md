@@ -1,3 +1,13 @@
+✅ README.md (Docker Space)
+---
+title: PDF Chatbot with Hybrid RAG
+emoji: 📄
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # PDF Chatbot - RAG-powered Document Assistant
 
 A modern web application that allows you to upload PDF documents and chat with them using advanced RAG (Retrieval-Augmented Generation) technology.
