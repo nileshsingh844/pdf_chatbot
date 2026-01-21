@@ -1,0 +1,32 @@
+# Virtual env
+tracker-chatbot/venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Node
+node_modules/
+.next/
+out/
+
+# Local data
+tracker-chatbot/backend/data/
+data/
+uploads/
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+
+
+# Python venv
+venv/
+**/venv/
+__pycache__/
+*.pyc
+

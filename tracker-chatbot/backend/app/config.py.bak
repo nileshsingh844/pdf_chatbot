@@ -1,0 +1,73 @@
+from pydantic_settings import BaseSettings
+from pydantic import Field
+from typing import Optional
+import os
+
+
+class GroqConfig(BaseSettings):
+    api_key: str = Field(default="", env="GROQ_API_KEY")
+    model: str = "llama-3.1-8b-instant"
+    temperature: float = 0.2
+    max_tokens: int = 4096
+    max_retries: int = 3
+    retry_delay: float = 1.0
+
+
+class VectorDBConfig(BaseSettings):
+    path: str = "./data/chroma_db"
+    collection_name: str = "pdf_documents"
+    persist_directory: str = "./data/chroma_db"
+
+
+class EmbeddingConfig(BaseSettings):
+    model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    batch_size: int = 32
+    device: str = "cpu"
+    normalize_embeddings: bool = True
+
+
+class RetrievalConfig(BaseSettings):
+    top_k: int = 8
+    threshold: float = 0.7
+    hybrid_alpha: float = 0.5  # 0.5 = 50% vector, 50% BM25
+    rrf_k: int = 60  # Reciprocal Rank Fusion constant
+
+
+class PDFConfig(BaseSettings):
+    max_size_mb: int = 100
+    chunk_size: int = 800
+    chunk_overlap: int = 150
+    supported_formats: list = ["pdf"]
+
+
+class APIConfig(BaseSettings):
+    host: str = "0.0.0.0"
+    port: int = 8000
+    cors_origins: list = ["http://localhost:3000"]
+    max_file_size: int = 100 * 1024 * 1024  # 100MB
+
+
+class Settings(BaseSettings):
+    # Environment
+    environment: str = "development"
+    debug: bool = True
+    
+    # Component configs
+    groq: GroqConfig = Field(default_factory=GroqConfig)
+    vector_db: VectorDBConfig = Field(default_factory=VectorDBConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    pdf: PDFConfig = Field(default_factory=PDFConfig)
+    api: APIConfig = Field(default_factory=APIConfig)
+    
+    # Paths
+    upload_dir: str = "./data/uploads"
+    temp_dir: str = "./data/temp"
+    
+    class Config:
+        env_file = ".env"
+        env_nested_delimiter = "__"
+
+
+# Global settings instance
+settings = Settings()

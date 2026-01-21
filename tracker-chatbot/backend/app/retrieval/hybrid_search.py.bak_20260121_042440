@@ -1,0 +1,314 @@
+from rank_bm25 import BM25Okapi
+import numpy as np
+from typing import List, Dict, Any, Tuple
+import re
+import logging
+from collections import defaultdict
+
+logger = logging.getLogger(__name__)
+
+
+class HybridSearcher:
+    def __init__(self, vector_store, embedder, alpha: float = 0.5, rrf_k: int = 60):
+        """
+        Initialize hybrid searcher with vector and BM25 search.
+        
+        Args:
+            vector_store: VectorStore instance for dense retrieval
+            embedder: Embedder instance for query embedding
+            alpha: Weight for combining dense and sparse scores (0-1)
+            rrf_k: Reciprocal Rank Fusion constant
+        """
+        self.vector_store = vector_store
+        self.embedder = embedder
+        self.alpha = alpha  # Weight for dense search
+        self.rrf_k = rrf_k
+        
+        # BM25 index (recreated on each document addition)
+        self.bm25_index = None
+        self.documents = []  # Store documents for BM25
+        self.doc_id_to_index = {}  # Map document IDs to BM25 index
+        
+        logger.info(f"Initialized hybrid searcher with alpha={alpha}, rrf_k={rrf_k}")
+    
+    def index_documents(self, documents: List[Dict[str, Any]]) -> bool:
+        """
+        Index documents for hybrid search.
+        
+        Args:
+            documents: List of documents with 'content', 'embedding', and 'metadata'
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not documents:
+            return True
+        
+        try:
+            # Clear existing index
+            self.documents = []
+            self.doc_id_to_index = {}
+            
+            # Add documents to vector store
+            doc_ids = self.vector_store.add_documents(documents)
+            
+            # Prepare documents for BM25
+            tokenized_docs = []
+            for i, doc in enumerate(documents):
+                if i >= len(doc_ids):
+                    continue
+                    
+                doc_id = doc_ids[i]
+                content = doc.get('content', '')
+                
+                # Tokenize document
+                tokens = self._tokenize_text(content)
+                tokenized_docs.append(tokens)
+                
+                # Store document info
+                self.documents.append({
+                    'id': doc_id,
+                    'content': content,
+                    'metadata': doc.get('metadata', {}),
+                    'tokens': tokens
+                })
+                
+                # Map ID to index
+                self.doc_id_to_index[doc_id] = len(self.documents) - 1
+            
+            # Create BM25 index
+            if tokenized_docs:
+                self.bm25_index = BM25Okapi(tokenized_docs)
+                logger.info(f"Successfully indexed {len(self.documents)} documents for hybrid search")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error indexing documents: {str(e)}")
+            return False
+    
+    def search(self, query: str, top_k: int = 8, threshold: float = 0.7) -> List[Dict[str, Any]]:
+        """
+        Perform hybrid search combining dense and sparse retrieval.
+        
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            threshold: Minimum relevance score threshold
+            
+        Returns:
+            List of search results with combined scores
+        """
+        if not query or not self.documents:
+            return []
+        
+        try:
+            # Dense search (vector similarity)
+            dense_results = self._dense_search(query, top_k * 2)  # Get more for better fusion
+            
+            # Sparse search (BM25)
+            sparse_results = self._sparse_search(query, top_k * 2)
+            
+            # Reciprocal Rank Fusion
+            fused_results = self._reciprocal_rank_fusion(dense_results, sparse_results)
+            
+            # Filter by threshold and return top_k
+            filtered_results = [
+                result for result in fused_results 
+                if result['combined_score'] >= threshold
+            ]
+            
+            return filtered_results[:top_k]
+            
+        except Exception as e:
+            logger.error(f"Error in hybrid search: {str(e)}")
+            return []
+    
+    def _dense_search(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+        """Perform dense vector search."""
+        try:
+            # Embed query
+            query_embedding = self.embedder.embed_query(query)
+            
+            if not query_embedding:
+                return []
+            
+            # Search vector store
+            results = self.vector_store.query(query_embedding, top_k)
+            
+            # Add rank information
+            for rank, result in enumerate(results):
+                result['dense_rank'] = rank + 1
+                result['dense_score'] = result.get('score', 0.0)
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in dense search: {str(e)}")
+            return []
+    
+    def _sparse_search(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+        """Perform sparse BM25 search."""
+        if not self.bm25_index:
+            return []
+        
+        try:
+            # Tokenize query
+            query_tokens = self._tokenize_text(query)
+            
+            # Get BM25 scores
+            bm25_scores = self.bm25_index.get_scores(query_tokens)
+            
+            # Create results
+            results = []
+            for idx, score in enumerate(bm25_scores):
+                if score > 0:  # Only include documents with non-zero scores
+                    doc = self.documents[idx]
+                    result = {
+                        'id': doc['id'],
+                        'content': doc['content'],
+                        'metadata': doc['metadata'],
+                        'sparse_score': score,
+                        'sparse_rank': None  # Will be set after sorting
+                    }
+                    results.append(result)
+            
+            # Sort by score and add ranks
+            results.sort(key=lambda x: x['sparse_score'], reverse=True)
+            for rank, result in enumerate(results[:top_k]):
+                result['sparse_rank'] = rank + 1
+            
+            return results[:top_k]
+            
+        except Exception as e:
+            logger.error(f"Error in sparse search: {str(e)}")
+            return []
+    
+    def _reciprocal_rank_fusion(self, dense_results: List[Dict[str, Any]], 
+                               sparse_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Combine results using Reciprocal Rank Fusion.
+        
+        Formula: score = sum(1 / (k + rank))
+        """
+        # Create score dictionary
+        doc_scores = defaultdict(float)
+        doc_data = {}
+        
+        # Add dense search scores
+        for result in dense_results:
+            doc_id = result['id']
+            rank = result['dense_rank']
+            score = 1.0 / (self.rrf_k + rank)
+            
+            doc_scores[doc_id] += self.alpha * score
+            doc_data[doc_id] = result
+        
+        # Add sparse search scores
+        for result in sparse_results:
+            doc_id = result['id']
+            rank = result['sparse_rank']
+            if rank is not None:
+                score = 1.0 / (self.rrf_k + rank)
+                doc_scores[doc_id] += (1 - self.alpha) * score
+                doc_data[doc_id] = result
+        
+        # Create final results
+        final_results = []
+        for doc_id, combined_score in doc_scores.items():
+            result = doc_data[doc_id].copy()
+            result['combined_score'] = combined_score
+            final_results.append(result)
+        
+        # Sort by combined score
+        final_results.sort(key=lambda x: x['combined_score'], reverse=True)
+        
+        return final_results
+    
+    def _tokenize_text(self, text: str) -> List[str]:
+        """
+        Tokenize text for BM25 indexing.
+        
+        Args:
+            text: Text to tokenize
+            
+        Returns:
+            List of tokens
+        """
+        if not text:
+            return []
+        
+        # Convert to lowercase and extract words
+        text = text.lower()
+        
+        # Remove punctuation and split on whitespace
+        tokens = re.findall(r'\b\w+\b', text)
+        
+        # Filter out very short tokens
+        tokens = [token for token in tokens if len(token) >= 2]
+        
+        return tokens
+    
+    def get_search_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about the search index.
+        
+        Returns:
+            Dictionary with search statistics
+        """
+        return {
+            'indexed_documents': len(self.documents),
+            'bm25_index_created': self.bm25_index is not None,
+            'alpha': self.alpha,
+            'rrf_k': self.rrf_k,
+            'vector_store_stats': self.vector_store.get_stats()
+        }
+    
+    def update_alpha(self, new_alpha: float):
+        """
+        Update the alpha parameter for hybrid search weighting.
+        
+        Args:
+            new_alpha: New alpha value (0-1)
+        """
+        if 0 <= new_alpha <= 1:
+            self.alpha = new_alpha
+            logger.info(f"Updated alpha to {new_alpha}")
+        else:
+            logger.warning(f"Invalid alpha value: {new_alpha}. Must be between 0 and 1.")
+    
+    def clear_index(self):
+        """Clear the search index."""
+        self.documents = []
+        self.doc_id_to_index = {}
+        self.bm25_index = None
+        self.vector_store.clear_collection()
+        logger.info("Cleared hybrid search index")
+    
+    def is_indexed(self) -> bool:
+        """Check if documents are indexed for search."""
+        return len(self.documents) > 0 and self.bm25_index is not None
+    
+    def search_by_category(self, query: str, category: str, top_k: int = 8) -> List[Dict[str, Any]]:
+        """
+        Search within a specific document category.
+        
+        Args:
+            query: Search query
+            category: Document category to filter by
+            top_k: Number of results to return
+            
+        Returns:
+            List of search results from the specified category
+        """
+        # Perform regular search
+        all_results = self.search(query, top_k * 2)
+        
+        # Filter by category
+        category_results = []
+        for result in all_results:
+            metadata = result.get('metadata', {})
+            if metadata.get('category') == category:
+                category_results.append(result)
+        
+        return category_results[:top_k]
