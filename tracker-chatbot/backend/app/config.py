@@ -43,7 +43,7 @@ class PDFConfig(BaseSettings):
 class APIConfig(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list = ["http://localhost:3000"]
+    cors_origins: list = ["http://localhost:3000", "http://localhost:7860", "http://127.0.0.1:7860"]
     max_file_size: int = 100 * 1024 * 1024  # 100MB
 
 
