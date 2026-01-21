@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  HF_SPACE_NAME: pdf-chatbot-space
-  HF_USERNAME: ${{ secrets.HF_USERNAME }}
+  HF_SPACE_NAME: PDF_Chatbot_with_Hybrid_RAG
+  HF_USERNAME: nile844
 
 jobs:
   deploy:
