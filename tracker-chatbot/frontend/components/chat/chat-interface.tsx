@@ -18,7 +18,7 @@ interface ChatInterfaceProps {
   className?: string
 }
 
-export function ChatInterface({
+export default function ChatInterface({
   messages,
   onMessagesChange,
   sessionId,

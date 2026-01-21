@@ -13,7 +13,7 @@ interface PDFUploadProps {
   className?: string
 }
 
-export function PDFUpload({ onUploadSuccess, onUploadError, className }: PDFUploadProps) {
+export default function PDFUpload({ onUploadSuccess, onUploadError, className }: PDFUploadProps) {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ status: 'idle' })
   const [dragActive, setDragActive] = useState(false)
 

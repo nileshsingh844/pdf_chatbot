@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { PDFUpload } from '@/components/pdf/pdf-upload'
-import { ChatInterface } from '@/components/chat/chat-interface'
+import PDFUpload from '@/components/pdf/pdf-upload'
+import ChatInterface from '@/components/chat/chat-interface'
 import { Message } from '@/lib/types'
 import { FileText, Bot, Settings, Moon, Sun } from 'lucide-react'
 
