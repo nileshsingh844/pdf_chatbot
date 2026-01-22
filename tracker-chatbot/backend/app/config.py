@@ -5,7 +5,7 @@ import os
 
 
 class GroqConfig(BaseSettings):
-    api_key: str = Field(default="", env="GROQ_API_KEY")
+    api_key: str = Field(default_factory=lambda: os.environ.get("GROQ_API_KEY", "").strip())
     model: str = "llama-3.1-8b-instant"
     temperature: float = 0.2
     max_tokens: int = 4096
