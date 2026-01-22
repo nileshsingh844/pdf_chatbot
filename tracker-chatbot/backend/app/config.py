@@ -5,7 +5,7 @@ import os
 
 
 class GroqConfig(BaseSettings):
-    api_key: str = Field(default_factory=lambda: os.environ.get("GROQ_API_KEY", "").strip())
+    api_key: str = Field(default="", env="GROQ_API_KEY")
     model: str = "llama-3.1-8b-instant"
     temperature: float = 0.2
     max_tokens: int = 4096
@@ -28,7 +28,7 @@ class EmbeddingConfig(BaseSettings):
 
 class RetrievalConfig(BaseSettings):
     top_k: int = 8
-    threshold: float = 0.01
+    threshold: float = 0.005  # Lowered from 0.01 to match RRF scores (~0.008)
     hybrid_alpha: float = 0.5  # 0.5 = 50% vector, 50% BM25
     rrf_k: int = 60  # Reciprocal Rank Fusion constant
 
