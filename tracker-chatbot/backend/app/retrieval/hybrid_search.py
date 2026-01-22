@@ -69,11 +69,18 @@ class HybridSearcher:
             logger.error(f"Error indexing documents for BM25: {str(e)}", exc_info=True)
             return False
 
-    def search(self, query: str, top_k: int = 8, threshold: float = 0.01) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 8, threshold: float = None) -> List[Dict[str, Any]]:
         """
         Hybrid search (RRF fusion).
         NOTE: threshold must be small because RRF scores are small (~0.01).
         """
+        # Use config threshold if not provided
+        if threshold is None:
+            from ..config import settings
+            threshold = settings.retrieval.threshold
+            
+        logger.info(f"Using threshold: {threshold}")
+        
         if not query or not self.documents:
             logger.warning(f"Empty query or no documents. Query: '{query}', Docs count: {len(self.documents)}")
             return []

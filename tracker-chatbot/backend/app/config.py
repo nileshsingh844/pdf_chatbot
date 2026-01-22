@@ -28,7 +28,7 @@ class EmbeddingConfig(BaseSettings):
 
 class RetrievalConfig(BaseSettings):
     top_k: int = 8
-    threshold: float = 0.005  # Lowered from 0.01 to match RRF scores (~0.008)
+    threshold: float = Field(default_factory=lambda: float(os.environ.get("RETRIEVAL_THRESHOLD", "0.005")))
     hybrid_alpha: float = 0.5  # 0.5 = 50% vector, 50% BM25
     rrf_k: int = 60  # Reciprocal Rank Fusion constant
 
