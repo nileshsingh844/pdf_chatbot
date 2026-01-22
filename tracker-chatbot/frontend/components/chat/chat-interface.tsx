@@ -66,24 +66,11 @@ export default function ChatInterface({
         session_id: sessionId || undefined
       }
 
-      const response = await fetch('http://localhost:8000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      if (!response.body) {
+      const stream = await streamChat(request)
+      const reader = stream.getReader()
+      if (!reader) {
         throw new Error('Response body is null')
       }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
 
       let assistantContent = ''
       const assistantMessage: Message = {
@@ -100,33 +87,26 @@ export default function ChatInterface({
           const { done, value } = await reader.read()
           if (done) break
 
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6))
-                if (data.type === 'content') {
-                  assistantContent += data.content
-                  assistantMessage.content = assistantContent
-                  setLocalMessages([...messagesWithAssistant])
-                } else if (data.type === 'done') {
-                  if (data.session_id) {
-                    onSessionIdChange(data.session_id)
-                  }
-                  onMessagesChange([...messagesWithAssistant])
-                  onLoadingChange(false)
-                  return
-                } else if (data.type === 'error') {
-                  throw new Error(data.content)
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE data:', line)
+          // value is already a ChatResponse object from our API client
+          if (value && typeof value === 'object') {
+            if (value.type === 'content') {
+              assistantContent += value.content
+              assistantMessage.content = assistantContent
+              setLocalMessages([...messagesWithAssistant])
+            } else if (value.type === 'done') {
+              if (value.session_id) {
+                onSessionIdChange(value.session_id)
               }
+              onMessagesChange([...messagesWithAssistant])
+              onLoadingChange(false)
+              return
+            } else if (value.type === 'error') {
+              throw new Error(value.content)
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error)
       } finally {
         reader.releaseLock()
       }
