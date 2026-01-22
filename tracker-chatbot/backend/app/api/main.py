@@ -115,6 +115,11 @@ async def startup_event():
             rrf_k=settings.retrieval.rrf_k
         )
         logger.info(f"GROQ_API_KEY loaded: {bool(settings.groq.api_key)}")
+        
+        # Fail fast if API key is missing
+        if not settings.groq.api_key:
+            raise RuntimeError("GROQ_API_KEY is missing. Add it in HF Secrets and restart Space.")
+            
         groq_client = GroqClient(
             api_key=settings.groq.api_key,
             model=settings.groq.model,

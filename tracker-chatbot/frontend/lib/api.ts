@@ -1,8 +1,8 @@
 import { ChatRequest, ChatResponse, UploadResponse, StatsResponse, HealthResponse } from './types';
 
 const API_URL = typeof window !== 'undefined' 
-  ? (window as any).__NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  ? (window as any).__NEXT_PUBLIC_API_URL || ''
+  : process.env.NEXT_PUBLIC_API_URL || '';
 
 class ApiClient {
   private baseUrl: string;
