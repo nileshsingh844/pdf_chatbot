@@ -114,6 +114,8 @@ async def startup_event():
             alpha=settings.retrieval.hybrid_alpha,
             rrf_k=settings.retrieval.rrf_k
         )
+        logger.info(f"GROQ_API_KEY loaded: {bool(settings.groq.api_key)}")
+        
         # Fail fast if API key is missing
         if not settings.groq.api_key:
             raise RuntimeError("GROQ_API_KEY is missing. Add it in HF Secrets and restart Space.")
@@ -211,6 +213,11 @@ async def upload_pdf(file: UploadFile = File(...)):
         
         # Index documents
         logger.info("Indexing documents...")
+        
+        # First, add documents to vector store (ChromaDB)
+        vector_store.add_documents(documents)
+        
+        # Then, build BM25 index
         hybrid_searcher.index_documents(documents)
         
         # Clean up temp file

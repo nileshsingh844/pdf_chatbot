@@ -200,8 +200,8 @@ class PDFParser:
                                         'columns': len(cleaned_table[0]) if cleaned_table else 0
                                     })
                         
-                        # Clear page from memory to prevent memory leaks
-                        page.close()
+                        # Note: page.close() not needed with PyMuPDF
+                        # Document will be closed at the end of _extract_tables
                         
                     except Exception as e:
                         logger.warning(f"Error extracting tables from page {page_num + 1}: {str(e)}")
