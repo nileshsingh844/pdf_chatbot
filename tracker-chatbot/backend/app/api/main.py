@@ -114,6 +114,7 @@ async def startup_event():
             alpha=settings.retrieval.hybrid_alpha,
             rrf_k=settings.retrieval.rrf_k
         )
+        logger.info(f"GROQ_API_KEY loaded: {bool(settings.groq.api_key)}")
         groq_client = GroqClient(
             api_key=settings.groq.api_key,
             model=settings.groq.model,
@@ -387,7 +388,8 @@ async def health_check():
         # Check component health
         vector_healthy = vector_store.is_healthy()
         embedder_healthy = embedder.is_model_loaded()
-        groq_healthy = groq_client.validate_api_key()
+        groq_validation = groq_client.validate_api_key()
+        groq_healthy = groq_validation.get("ok", False)
         
         overall_health = all([vector_healthy, embedder_healthy, groq_healthy])
         
@@ -396,7 +398,10 @@ async def health_check():
             "components": {
                 "vector_store": vector_healthy,
                 "embedder": embedder_healthy,
-                "groq_client": groq_healthy
+                "groq_client": {
+                    "healthy": groq_healthy,
+                    "reason": groq_validation.get("reason", "Unknown")
+                }
             },
             "timestamp": datetime.now()
         }

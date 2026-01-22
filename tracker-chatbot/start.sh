@@ -29,7 +29,6 @@ wait_for_service() {
 
 # Start backend
 echo "Starting FastAPI backend..."
-cd /app
 python -m uvicorn backend.app.api.main:app \
   --host 0.0.0.0 \
   --port 8000 \
@@ -41,7 +40,7 @@ wait_for_service "http://localhost:8000/api/health"
 
 # Start frontend
 echo "Starting Next.js frontend..."
-cd /app/frontend
+cd frontend
 npm run start -- --port 7860 --hostname 0.0.0.0 &
 FRONTEND_PID=$!
 

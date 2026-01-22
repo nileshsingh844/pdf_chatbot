@@ -2,3 +2,5 @@
 curl
 netcat-openbsd
 build-essential
+nodejs
+npm

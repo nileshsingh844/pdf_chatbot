@@ -70,7 +70,8 @@ class GroqClient:
         for attempt in range(self.max_retries):
             try:
                 # Create chat completion with streaming
-                stream = self.client.chat.completions.create(
+                stream = await asyncio.to_thread(
+                    self.client.chat.completions.create,
                     model=self.model,
                     messages=chat_messages,
                     temperature=self.temperature,
@@ -147,7 +148,8 @@ class GroqClient:
         # Retry logic
         for attempt in range(self.max_retries):
             try:
-                response = self.client.chat.completions.create(
+                response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
                     model=self.model,
                     messages=chat_messages,
                     temperature=self.temperature,
@@ -233,24 +235,24 @@ Answer:"""
         
         return unique_pages
     
-    def validate_api_key(self) -> bool:
+    def validate_api_key(self) -> Dict[str, Any]:
         """
-        Validate the API key by making a simple request.
+        Validate the API key by checking models list.
         
         Returns:
-            True if API key is valid, False otherwise
+            Dictionary with validation result and reason
         """
         try:
-            # Make a simple request to test the API key
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": "test"}],
-                max_tokens=1
-            )
-            return True
+            # Use models list endpoint instead of chat completion
+            self.client.models.list()
+            return {"ok": True, "reason": "Key and network OK"}
         except Exception as e:
-            logger.error(f"API key validation failed: {str(e)}")
-            return False
+            msg = str(e).lower()
+            if "401" in msg or "unauthorized" in msg or "invalid_api_key" in msg:
+                return {"ok": False, "reason": "Invalid API key"}
+            if "connection" in msg or "timeout" in msg or "dns" in msg:
+                return {"ok": False, "reason": "Network issue - cannot reach Groq"}
+            return {"ok": False, "reason": f"Unknown error: {e}"}
     
     def get_model_info(self) -> Dict[str, Any]:
         """
