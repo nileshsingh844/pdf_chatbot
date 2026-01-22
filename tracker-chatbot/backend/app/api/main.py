@@ -250,100 +250,97 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Chat endpoint with SSE streaming."""
-    async def generate_response():
+    """Chat endpoint returning JSON response."""
+    try:
+        # Get or create session
+        session_id = request.session_id or f"session_{datetime.now().timestamp()}"
+        if session_id not in sessions:
+            sessions[session_id] = {'messages': [], 'created_at': datetime.now()}
+        
+        session = sessions[session_id]
+        
+        # Add user message to session
+        session['messages'].append({
+            'role': 'user',
+            'content': request.message,
+            'timestamp': datetime.now()
+        })
+        
+        logger.info(f"Chat request for session {session_id}: {request.message}")
+        
+        # Search for relevant documents
+        search_results = hybrid_searcher.search(request.message, top_k=settings.retrieval.top_k)
+        logger.info(f"Chat search returned {len(search_results)} results for query: '{request.message}'")
+        
+        if not search_results:
+            logger.warning("No search results found, using fallback response")
+            return {
+                "answer": ERROR_FALLBACK_PROMPT,
+                "session_id": session_id,
+                "citations": []
+            }
+        
+        # Prepare context
+        context_parts = []
+        for result in search_results:
+            page_num = result.get('metadata', {}).get('page_number', 'Unknown')
+            content = result.get('content', '')
+            context_parts.append(f"(Page {page_num}) {content}")
+        
+        context = "\n\n".join(context_parts)
+        
+        # Create RAG prompt
+        rag_prompt = groq_client.create_rag_prompt(context, request.message)
+        logger.info(f"Created RAG prompt with {len(context)} characters of context")
+        
+        # Prepare messages for Groq
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": rag_prompt}
+        ]
+        
+        logger.info(f"Sending {len(messages)} messages to Groq")
+        
+        # Get response from Groq (non-streaming)
         try:
-            # Get or create session
-            session_id = request.session_id or f"session_{datetime.now().timestamp()}"
-            if session_id not in sessions:
-                sessions[session_id] = {'messages': [], 'created_at': datetime.now()}
+            response = await groq_client.chat_completion(messages)
+            full_response = response['content']
+            logger.info(f"Groq response completed: {len(full_response)} characters")
             
-            session = sessions[session_id]
-            
-            # Add user message to session
+            # Add assistant message to session
             session['messages'].append({
-                'role': 'user',
-                'content': request.message,
+                'role': 'assistant',
+                'content': full_response,
                 'timestamp': datetime.now()
             })
             
-            # Search for relevant documents
-            search_results = hybrid_searcher.search(
-                query=request.message,
-                top_k=settings.retrieval.top_k,
-                threshold=settings.retrieval.threshold
-            )
-            
-            logger.info(f"Chat search returned {len(search_results)} results for query: '{request.message}'")
-            
-            if not search_results:
-                # No relevant documents found
-                logger.warning("No search results found, using fallback response")
-                yield f"data: {json.dumps({'type': 'content', 'content': ERROR_FALLBACK_PROMPT})}\n\n"
-                yield f"data: {json.dumps({'type': 'done', 'content': ''})}\n\n"
-                return
-            
-            # Prepare context
-            context_parts = []
+            # Extract citations
+            citations = []
             for result in search_results:
                 page_num = result.get('metadata', {}).get('page_number', 'Unknown')
-                content = result.get('content', '')
-                context_parts.append(f"(Page {page_num}) {content}")
+                citations.append({"page": page_num, "content": result.get('content', '')[:100] + "..."})
             
-            context = "\n\n".join(context_parts)
+            return {
+                "answer": full_response,
+                "session_id": session_id,
+                "citations": citations
+            }
             
-            # Create RAG prompt
-            rag_prompt = groq_client.create_rag_prompt(context, request.message)
-            logger.info(f"Created RAG prompt with {len(context)} characters of context")
+        except Exception as groq_error:
+            logger.error(f"Groq API error: {str(groq_error)}")
+            return {
+                "answer": f"I encountered an error with the AI service: {str(groq_error)}",
+                "session_id": session_id,
+                "citations": []
+            }
             
-            # Prepare messages for Groq
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": rag_prompt}
-            ]
-            
-            logger.info(f"Sending {len(messages)} messages to Groq")
-            
-            # Stream response from Groq
-            full_response = ""
-            try:
-                async for chunk in groq_client.stream_chat(messages):
-                    if chunk['type'] == 'content':
-                        full_response += chunk['content']
-                        yield f"data: {json.dumps({'type': 'content', 'content': chunk['content']})}\n\n"
-                    elif chunk['type'] == 'done':
-                        # Add assistant message to session
-                        session['messages'].append({
-                            'role': 'assistant',
-                            'content': full_response,
-                            'timestamp': datetime.now()
-                        })
-                        logger.info(f"Groq response completed: {len(full_response)} characters")
-                        yield f"data: {json.dumps({'type': 'done', 'content': '', 'session_id': session_id})}\n\n"
-                        return
-                    elif chunk['type'] == 'error':
-                        logger.error(f"Groq returned error: {chunk['content']}")
-                        yield f"data: {json.dumps({'type': 'error', 'content': chunk['content']})}\n\n"
-                        return
-            except Exception as groq_error:
-                logger.error(f"Groq streaming failed: {str(groq_error)}")
-                logger.exception("Groq exception details:")
-                yield f"data: {json.dumps({'type': 'error', 'content': f'Groq API Error: {str(groq_error)}'})}\n\n"
-                return
-            
-        except Exception as e:
-            logger.error(f"Error in chat: {str(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'content': f'Error: {str(e)}'})}\n\n"
-    
-    return StreamingResponse(
-        generate_response(),
-        media_type="text/plain",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"  # Disable nginx buffering
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {str(e)}")
+        return {
+            "answer": f"Sorry, I encountered an error: {str(e)}",
+            "session_id": request.session_id or "",
+            "citations": []
         }
-    )
 
 
 @app.post("/api/export")

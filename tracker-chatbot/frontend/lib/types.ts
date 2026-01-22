@@ -14,6 +14,10 @@ export interface ChatResponse {
   content: string;
   timestamp?: Date;
   session_id?: string;
+  citations?: Array<{
+    page: number | string;
+    content: string;
+  }>;
 }
 
 export interface UploadStatus {

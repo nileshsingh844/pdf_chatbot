@@ -66,50 +66,26 @@ export default function ChatInterface({
         session_id: sessionId || undefined
       }
 
-      const stream = await streamChat(request)
-      const reader = stream.getReader()
-      if (!reader) {
-        throw new Error('Response body is null')
-      }
-
-      let assistantContent = ''
+      // Simple JSON response (no streaming)
+      const response = await streamChat(request)
+      
       const assistantMessage: Message = {
         role: 'assistant',
-        content: '',
+        content: response.content,
         timestamp: new Date()
       }
 
-      const messagesWithAssistant = [...updatedMessages, assistantMessage]
-      setLocalMessages(messagesWithAssistant)
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          // value is already a ChatResponse object from our API client
-          if (value && typeof value === 'object') {
-            if (value.type === 'content') {
-              assistantContent += value.content
-              assistantMessage.content = assistantContent
-              setLocalMessages([...messagesWithAssistant])
-            } else if (value.type === 'done') {
-              if (value.session_id) {
-                onSessionIdChange(value.session_id)
-              }
-              onMessagesChange([...messagesWithAssistant])
-              onLoadingChange(false)
-              return
-            } else if (value.type === 'error') {
-              throw new Error(value.content)
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Stream reading error:', error)
-      } finally {
-        reader.releaseLock()
+      const finalMessages = [...updatedMessages, assistantMessage]
+      setLocalMessages(finalMessages)
+      onMessagesChange(finalMessages)
+      
+      // Update session ID if provided
+      if (response.session_id) {
+        onSessionIdChange(response.session_id)
       }
+      
+      onLoadingChange(false)
+      
     } catch (error) {
       console.error('Chat error:', error)
       const errorMessage: Message = {

@@ -99,12 +99,21 @@ class VectorStore:
                 return []
             
             # Add to collection
+            logger.info(f"Adding {len(ids)} documents to collection...")
             self.collection.add(
                 ids=ids,
                 embeddings=embeddings,
                 documents=documents_text,
                 metadatas=metadatas
             )
+            
+            # Verify the add operation
+            try:
+                count_after = self.collection.count()
+                logger.info(f"Collection count after add: {count_after}")
+            except Exception as e:
+                logger.error(f"Error getting count after add: {e}")
+            
             logger.info(f"Successfully added {len(ids)} documents to vector store")
             return ids
         

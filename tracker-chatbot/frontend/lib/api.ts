@@ -55,8 +55,8 @@ class ApiClient {
     return response.json();
   }
 
-  // Stream chat response
-  async streamChat(request: ChatRequest): Promise<ReadableStream<ChatResponse>> {
+  // Simple chat response (non-streaming)
+  async streamChat(request: ChatRequest): Promise<ChatResponse> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: {
@@ -70,51 +70,15 @@ class ApiClient {
       throw new Error(`Chat Error: ${response.status} - ${errorText}`);
     }
 
-    if (!response.body) {
-      throw new Error('Response body is null');
-    }
-
-    return new ReadableStream<ChatResponse>({
-      async start(controller) {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = line.slice(6); // Remove 'data: ' prefix
-                  if (data.trim()) {
-                    const parsed = JSON.parse(data);
-                    controller.enqueue(parsed);
-                    
-                    if (parsed.type === 'done' || parsed.type === 'error') {
-                      controller.close();
-                      return;
-                  }
-                }
-                } catch (e) {
-                  console.warn('Failed to parse SSE data:', line, e);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          controller.error(error);
-        } finally {
-          reader.releaseLock();
-          controller.close();
-        }
-      }
-    });
+    const data = await response.json();
+    
+    // Convert backend JSON response to ChatResponse format
+    return {
+      type: 'done',
+      content: data.answer,
+      session_id: data.session_id,
+      citations: data.citations || []
+    };
   }
 
   // Get system stats
