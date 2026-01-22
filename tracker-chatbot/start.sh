@@ -3,51 +3,52 @@ set -e
 
 echo "Starting PDF Chatbot for Hugging Face Space..."
 
-# Create necessary directories
-mkdir -p /app/data/uploads
-mkdir -p /app/data/chroma_db
+# Create data directories
+mkdir -p ./data/uploads ./data/chroma_db
 
-# Function to check if a service is ready
+# Function to wait for service
 wait_for_service() {
-    local host=$1
-    local port=$2
-    local service_name=$3
-    echo "Waiting for $service_name to be ready on $host:$port..."
-    
+    local url=$1
     local max_attempts=30
     local attempt=1
     
-    while ! nc -z "$host" "$port"; do
-        if [ $attempt -ge $max_attempts ]; then
-            echo "ERROR: $service_name failed to start after ${max_attempts} attempts"
-            exit 1
+    echo "Waiting for service at $url..."
+    while [ $attempt -le $max_attempts ]; do
+        if curl -f -s "$url" > /dev/null 2>&1; then
+            echo "Service is ready!"
+            return 0
         fi
-        echo "Waiting for $service_name... (attempt $attempt/$max_attempts)"
+        echo "Attempt $attempt/$max_attempts: Service not ready, waiting 2 seconds..."
         sleep 2
-        ((attempt++))
+        attempt=$((attempt + 1))
     done
-    echo "$service_name is ready!"
+    
+    echo "Service failed to start after $max_attempts attempts"
+    return 1
 }
 
-echo "Starting FastAPI backend on :8000..."
+# Start backend
+echo "Starting FastAPI backend..."
 cd /app
-/app/backend/.venv/bin/uvicorn backend.app.api.main:app \
+python -m uvicorn backend.app.api.main:app \
   --host 0.0.0.0 \
   --port 8000 \
   --log-level info &
-
 BACKEND_PID=$!
 
 # Wait for backend to be ready
-wait_for_service localhost 8000 "Backend"
+wait_for_service "http://localhost:8000/api/health"
 
-echo "Starting Next.js frontend on :7860..."
+# Start frontend
+echo "Starting Next.js frontend..."
 cd /app/frontend
 npm run start -- --port 7860 --hostname 0.0.0.0 &
-
 FRONTEND_PID=$!
 
-# Function to cleanup processes
+# Wait for frontend to be ready
+wait_for_service "http://localhost:7860"
+
+# Function to handle graceful shutdown
 cleanup() {
     echo "Shutting down services..."
     kill $BACKEND_PID 2>/dev/null || true
@@ -55,8 +56,8 @@ cleanup() {
     exit 0
 }
 
-# Trap signals for graceful shutdown
+# Set up signal handlers
 trap cleanup SIGTERM SIGINT
 
-# Wait for processes
+# Keep script running
 wait $BACKEND_PID $FRONTEND_PID

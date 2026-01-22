@@ -1,0 +1,4 @@
+# System dependencies for Hugging Face Spaces
+curl
+netcat-openbsd
+build-essential
