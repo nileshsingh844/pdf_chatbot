@@ -10,6 +10,9 @@ echo "DEBUG: GROQ_API_KEY length -> ${#GROQ_API_KEY}"
 # Debug Python environment
 python -c "import os; print('PY DEBUG GROQ_API_KEY:', repr(os.getenv('GROQ_API_KEY')))"
 
+# Export GROQ_API_KEY explicitly for Python processes
+export GROQ_API_KEY="${GROQ_API_KEY}"
+
 # Create data directories
 mkdir -p ./data/uploads ./data/chroma_db
 
