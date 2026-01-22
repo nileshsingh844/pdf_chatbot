@@ -75,16 +75,29 @@ class HybridSearcher:
         NOTE: threshold must be small because RRF scores are small (~0.01).
         """
         if not query or not self.documents:
+            logger.warning(f"Empty query or no documents. Query: '{query}', Docs count: {len(self.documents)}")
             return []
 
         try:
             dense_results = self._dense_search(query, top_k * 2)
             sparse_results = self._sparse_search(query, top_k * 2)
+            
+            logger.info(f"Dense results: {len(dense_results)}, Sparse results: {len(sparse_results)}")
 
             fused_results = self._reciprocal_rank_fusion(dense_results, sparse_results)
+            logger.info(f"Fused results: {len(fused_results)}")
+
+            # Debug: Show scores before filtering
+            for i, r in enumerate(fused_results[:5]):
+                logger.info(f"Result {i}: score={r.get('combined_score', 0.0):.6f}")
 
             filtered = [r for r in fused_results if r.get("combined_score", 0.0) >= threshold]
-            return filtered[:top_k]
+            logger.info(f"After threshold filtering ({threshold}): {len(filtered)} results")
+            
+            final_results = filtered[:top_k]
+            logger.info(f"Final results (top_k={top_k}): {len(final_results)}")
+            
+            return final_results
 
         except Exception as e:
             logger.error(f"Error in hybrid search: {str(e)}", exc_info=True)

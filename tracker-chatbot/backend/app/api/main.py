@@ -274,8 +274,11 @@ async def chat(request: ChatRequest):
                 threshold=settings.retrieval.threshold
             )
             
+            logger.info(f"Chat search returned {len(search_results)} results for query: '{request.message}'")
+            
             if not search_results:
                 # No relevant documents found
+                logger.warning("No search results found, using fallback response")
                 yield f"data: {json.dumps({'type': 'content', 'content': ERROR_FALLBACK_PROMPT})}\n\n"
                 yield f"data: {json.dumps({'type': 'done', 'content': ''})}\n\n"
                 return
@@ -291,6 +294,7 @@ async def chat(request: ChatRequest):
             
             # Create RAG prompt
             rag_prompt = groq_client.create_rag_prompt(context, request.message)
+            logger.info(f"Created RAG prompt with {len(context)} characters of context")
             
             # Prepare messages for Groq
             messages = [
@@ -298,24 +302,34 @@ async def chat(request: ChatRequest):
                 {"role": "user", "content": rag_prompt}
             ]
             
+            logger.info(f"Sending {len(messages)} messages to Groq")
+            
             # Stream response from Groq
             full_response = ""
-            async for chunk in groq_client.stream_chat(messages):
-                if chunk['type'] == 'content':
-                    full_response += chunk['content']
-                    yield f"data: {json.dumps({'type': 'content', 'content': chunk['content']})}\n\n"
-                elif chunk['type'] == 'done':
-                    # Add assistant message to session
-                    session['messages'].append({
-                        'role': 'assistant',
-                        'content': full_response,
-                        'timestamp': datetime.now()
-                    })
-                    yield f"data: {json.dumps({'type': 'done', 'content': '', 'session_id': session_id})}\n\n"
-                    return
-                elif chunk['type'] == 'error':
-                    yield f"data: {json.dumps({'type': 'error', 'content': chunk['content']})}\n\n"
-                    return
+            try:
+                async for chunk in groq_client.stream_chat(messages):
+                    if chunk['type'] == 'content':
+                        full_response += chunk['content']
+                        yield f"data: {json.dumps({'type': 'content', 'content': chunk['content']})}\n\n"
+                    elif chunk['type'] == 'done':
+                        # Add assistant message to session
+                        session['messages'].append({
+                            'role': 'assistant',
+                            'content': full_response,
+                            'timestamp': datetime.now()
+                        })
+                        logger.info(f"Groq response completed: {len(full_response)} characters")
+                        yield f"data: {json.dumps({'type': 'done', 'content': '', 'session_id': session_id})}\n\n"
+                        return
+                    elif chunk['type'] == 'error':
+                        logger.error(f"Groq returned error: {chunk['content']}")
+                        yield f"data: {json.dumps({'type': 'error', 'content': chunk['content']})}\n\n"
+                        return
+            except Exception as groq_error:
+                logger.error(f"Groq streaming failed: {str(groq_error)}")
+                logger.exception("Groq exception details:")
+                yield f"data: {json.dumps({'type': 'error', 'content': f'Groq API Error: {str(groq_error)}'})}\n\n"
+                return
             
         except Exception as e:
             logger.error(f"Error in chat: {str(e)}")
