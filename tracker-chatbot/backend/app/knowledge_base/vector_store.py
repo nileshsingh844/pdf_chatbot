@@ -129,9 +129,20 @@ class VectorStore:
             List of search results with scores and metadata
         """
         if not query_embedding:
+            logger.warning("No query embedding provided")
             return []
         
         try:
+            # Debug: Check collection state
+            try:
+                count = self.collection.count()
+                logger.info(f"Collection has {count} documents")
+            except Exception as e:
+                logger.error(f"Error getting collection count: {e}")
+            
+            # Debug: Check query embedding
+            logger.info(f"Query embedding length: {len(query_embedding)}")
+            
             # Query the collection
             results = self.collection.query(
                 query_embeddings=[query_embedding],
@@ -140,6 +151,13 @@ class VectorStore:
                 where_document=where_document,
                 include=['metadatas', 'documents', 'distances', 'uris']
             )
+            
+            # Debug: Log query results structure
+            logger.info(f"Query results keys: {list(results.keys())}")
+            if results['ids']:
+                logger.info(f"Results IDs length: {len(results['ids'][0]) if results['ids'][0] else 0}")
+            else:
+                logger.info("No IDs in results")
             
             # Format results
             formatted_results = []
@@ -159,6 +177,8 @@ class VectorStore:
             
         except Exception as e:
             logger.error(f"Error querying vector store: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
     def get_document_by_id(self, doc_id: str) -> Optional[Dict[str, Any]]:
