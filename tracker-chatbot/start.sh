@@ -3,13 +3,6 @@ set -e
 
 echo "Starting PDF Chatbot for Hugging Face Space..."
 
-# Debug GROQ_API_KEY presence
-echo "DEBUG: GROQ_API_KEY present? -> ${GROQ_API_KEY:+YES}"
-echo "DEBUG: GROQ_API_KEY length -> ${#GROQ_API_KEY}"
-
-# Debug Python environment
-python -c "import os; print('PY DEBUG GROQ_API_KEY:', repr(os.getenv('GROQ_API_KEY')))"
-
 # Create data directories
 mkdir -p ./data/uploads ./data/chroma_db
 
