@@ -1,8 +1,8 @@
 fastapi==0.108.0
 uvicorn[standard]==0.25.0
 python-multipart==0.0.6
-numpy==1.26.4
-chromadb==0.4.24
+numpy>=1.26.4
+chromadb>=0.5.0  # Newer version with NumPy 2.0 support
 PyMuPDF==1.23.8
 pdfplumber==0.10.3
 langchain-text-splitters==0.0.1
