@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const BACKEND_URL = 'http://127.0.0.1:8000';
 
 export async function GET() {
@@ -17,10 +19,22 @@ export async function GET() {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
+    // During build, backend won't be running, so return a mock response
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'phase-production-build') {
+      return NextResponse.json({
+        status: 'building',
+        components: {
+          vector_store: false,
+          embedder: false,
+          groq_client: { healthy: false, reason: 'Building...' }
+        }
+      });
+    }
+    
     console.error('Health proxy error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: 'Backend unavailable' },
+      { status: 503 }
     );
   }
 }
