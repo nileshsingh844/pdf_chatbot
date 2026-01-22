@@ -39,7 +39,8 @@ wait_for_service() {
 
 # Start backend
 echo "Starting FastAPI backend..."
-python -m uvicorn backend.app.api.main:app \
+echo "DEBUG: GROQ_API_KEY before uvicorn: ${GROQ_API_KEY:+YES}"
+GROQ_API_KEY="${GROQ_API_KEY}" python -m uvicorn backend.app.api.main:app \
   --host 0.0.0.0 \
   --port 8000 \
   --log-level info &
