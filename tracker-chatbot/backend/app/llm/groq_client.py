@@ -38,7 +38,7 @@ class GroqClient:
         self.retry_delay = retry_delay
         
         # Initialize client
-        self.client = Groq(api_key=api_key, http_client=None)
+        self.client = Groq(api_key=api_key)
         
         logger.info(f"Initialized Groq client with model: {model}")
     
